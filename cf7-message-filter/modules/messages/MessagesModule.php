@@ -132,6 +132,7 @@ class MessagesModule extends Module {
 
 	/**
 	 * Logs messages blocked to the log file
+	 * @depecated
 	 * @since 1.2.0
 	 */
 	public function updateLog( $spam ) {
@@ -230,21 +231,24 @@ class MessagesModule extends Module {
 	public function getForms() {
 		$result = array();
 		if ( class_exists( 'WPCF7_ContactForm' ) ) {
+			$forms     = array();
 			$cf7_forms = WPCF7_ContactForm::find();
 			foreach ( $cf7_forms as $form ) {
-				array_push( $result, array( '[CF7] ' . $form->title(), 'cf7-' . $form->id() ) );
+				array_push( $forms, array( "name" => $form->title(), "id" => $form->id() ) );
 			}
+			$result['cf7'] = array( 'name' => "Contact Form 7", "forms" => $forms );
 		}
 		if ( function_exists( 'wpforms' ) ) {
+			$forms               = array();
 			$args['post_status'] = 'publish';
 			$wp_forms            = wpforms()->get( 'form' )->get( '', $args );
 			foreach ( $wp_forms as $form ) {
-				array_push( $result, array( '[WPForms] ' . $form->post_title, 'wpforms-' . $form->ID ) );
+				array_push( $forms, array( "name" => $form->post_title, "id" => $form->ID ) );
 			}
+			$result['wpforms'] = array( "name" => "WP Forms", "forms" => $forms );
 		}
 
 		return $result;
-
 	}
 
 	/**
@@ -357,6 +361,10 @@ class MessagesModule extends Module {
 	 */
 	public function serverMessages() {
 		try {
+			$nonce = sanitize_text_field( $_REQUEST['_wpnonce'] );
+			if ( ! wp_verify_nonce( $nonce, 'get-blocked-messages' ) ) {
+				throw new \Exception( 'Invalid nonce' );
+			}
 			$link_to_messages = admin_url( 'admin.php' ) . '?page=kmcf7-filtered-messages';
 			$form_id          = sanitize_text_field( $_REQUEST['form_id'] );
 			$contact_form     = sanitize_text_field( $_REQUEST['contact_form'] );
@@ -367,18 +375,33 @@ class MessagesModule extends Module {
 			$search_value     = sanitize_text_field( $search['value'] );
 			$search_value     = trim( $search_value );
 			$current_page     = ( $start / $length ) + 1;
-			$results          = Message::where( 'contact_form', '=', $contact_form )->andWhere( 'message', 'LIKE', "%{$search_value}%" )->andWhere( 'form_id', '=', $form_id )->orderBy( 'id', 'desc' )->paginate( $length, $current_page )->get();
-			$size             = $results['totalItems'];
-			$results          = $results['data'];
-			$messages         = array();
-			$rows             = $this->getRows2( $form_id, $contact_form );
+			$results          = Message::where( 'message', 'LIKE', "%{$search_value}%" )->orderBy( 'id', 'desc' )->paginate( $length, $current_page );
+			if ( $contact_form == 'all' ) {
+				$form_id = 'all';
+			} else {
+				$results = $results->andWhere( 'contact_form', '=', $contact_form );
+			}
+			if ( $form_id != 'all' ) {
+				$results = $results->andWhere( 'form_id', '=', $form_id );
+			}
+			$results  = $results->get();
+			$size     = $results['totalItems'];
+			$results  = $results['data'];
+			$messages = array();
+
+			// todo: Investigate why this function returns two different results for some contact forms on the frontend and here
+			$rows = $this->getRows2( $form_id, $contact_form );
+			
 			foreach ( $results as $result ) {
 				$decoded_message = json_decode( $result->message );
 				$message         = array(
 					"",
-					"<a href='{$link_to_messages}&message_id={$result->id}' class='btn btn-sm btn-primary'>View</a> <button class='btn btn-sm btn-primary' onclick='showResubmitModal({$result->id})'>Restore</button>",
+					"<a href='{$link_to_messages}&message_id={$result->id}' class='btn btn-sm btn-primary'>" . __( "View", KMCF7MS_TEXT_DOMAIN ) . "</a> <button class='btn btn-sm btn-primary' onclick='showResubmitModal({$result->id})'>" . __( "Restore", KMCF7MS_TEXT_DOMAIN ) . "</button>",
 					intval( $result->id )
 				);
+				if ( $contact_form == 'all' || $form_id == 'all' ) {
+					array_push( $message, $this->getFormName( $result->form_id, $result->contact_form ) );
+				}
 				foreach ( $rows as $row ) {
 					if ( property_exists( $decoded_message, $row ) ) {
 						$content  = esc_html( self::decodeUnicodeVars( $decoded_message->$row ) );
@@ -387,6 +410,7 @@ class MessagesModule extends Module {
 					} else {
 						array_push( $message, " " );
 					}
+
 				}
 
 				array_push( $messages, $message );
@@ -419,28 +443,114 @@ class MessagesModule extends Module {
 		switch ( $contact_form ) {
 			case 'cf7':
 				if ( class_exists( 'WPCF7_ContactForm' ) ) {
-					$form = WPCF7_ContactForm::get_instance( $form_id );
-					$tags = $form->scan_form_tags();
-					foreach ( $tags as $tag ) {
-						array_push( $rows, $tag->name );
+					if ( $form_id == 'all' ) {
+						$rows = [ 'Contact Form' ];
+						foreach ( WPCF7_ContactForm::find() as $cf7_form ) {
+							// todo: get only published forms
+							$rows = array_merge( $rows, $this->scanCf7Rows( $cf7_form->id() ) );
+						}
+					} else {
+						$rows = $this->scanCf7Rows( $form_id );
 					}
 				}
 				break;
 			case 'wpforms':
 				if ( function_exists( 'wpforms' ) ) {
-					$form = wpforms()->get( 'form' )->get( $form_id );
-
-					$content = json_decode( $form->post_content, true );
-					$fields  = $content['fields'];
-
-					foreach ( $fields as $field ) {
-						array_push( $rows, $field['label'] );
+					if ( $form_id == 'all' ) {
+						$rows = [ 'Contact Form' ];
+						foreach ( wpforms()->get( 'form' )->get() as $wp_form ) {
+							// get only published forms
+							if ( $wp_form->post_status == 'publish' ) {
+								$rows = array_merge( $rows, $this->scanWPFormRows( $wp_form->ID ) );
+							}
+						}
+					} else {
+						$rows = $this->scanWPFormRows( $form_id );
 					}
 				}
 				break;
+			default:
+				$rows = [ 'Contact Form' ];
+				if ( class_exists( 'WPCF7_ContactForm' ) ) {
+					foreach ( WPCF7_ContactForm::find() as $cf7_form ) {
+						$rows = array_merge( $rows, $this->scanCf7Rows( $cf7_form->id() ) );
+					}
+				}
+				if ( function_exists( 'wpforms' ) ) {
+					foreach ( wpforms()->get( 'form' )->get() as $wp_form ) {
+						// get only published forms
+						if ( $wp_form->post_status == 'publish' ) {
+							$rows = array_merge( $rows, $this->scanWPFormRows( $wp_form->ID ) );
+						}
+					}
+				}
+				break;
+
 		}
 
 		return array_unique( $rows, SORT_REGULAR );
+	}
+
+	/**
+	 * @since 1.6.3
+	 * Scans a contact form 7 form for rows
+	 */
+	private function scanCf7Rows( $form_id ) {
+		$rows = array();
+
+		$form = WPCF7_ContactForm::get_instance( $form_id );
+		$tags = $form->scan_form_tags();
+		foreach ( $tags as $tag ) {
+			array_push( $rows, $tag->name );
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * @since 1.6.3
+	 * Scans a wp form for rows
+	 */
+	private function scanWPFormRows( $form_id ) {
+		$rows = array();
+
+		$form = wpforms()->get( 'form' )->get( $form_id );
+
+		$content = json_decode( $form->post_content, true );
+		$fields  = $content['fields'];
+
+		foreach ( $fields as $field ) {
+			array_push( $rows, $field['label'] );
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * @since 1.6.3
+	 * Get the name of a form from its ID
+	 */
+	private function getFormName( $form_id, $contact_form ) {
+		switch ( $contact_form ) {
+			case 'cf7':
+				if ( class_exists( 'WPCF7_ContactForm' ) ) {
+					$form = WPCF7_ContactForm::get_instance( $form_id );
+
+					return $form->title();
+				}
+
+				return "";
+			case 'wpforms':
+				if ( function_exists( 'wpforms' ) ) {
+					$form = wpforms()->get( 'form' )->get( $form_id );
+
+					return $form->post_title;
+				}
+
+				return "";
+			default:
+				return '';
+		}
 	}
 
 	/**
@@ -462,12 +572,14 @@ class MessagesModule extends Module {
 
 		$validator = KMValidator::make(
 			array(
-				'message_ids' => 'required'
+				'message_ids' => 'required',
+				"_wpnonce"    => 'required'
 			),
-			$_POST
+			$_REQUEST
 		);
+		$nonce     = sanitize_text_field( $_REQUEST['_wpnonce'] );
 
-		if ( $validator->validate() ) {
+		if ( $validator->validate() && wp_verify_nonce( $nonce, 'can-delete-messages' ) ) {
 			$message_ids = sanitize_text_field( $_POST['message_ids'] );
 			$message_ids = explode( ',', $message_ids );
 			foreach ( $message_ids as $message_id ) {
@@ -496,12 +608,15 @@ class MessagesModule extends Module {
 	public function resubmitMessage() {
 		$validator = KMValidator::make(
 			array(
-				'message_ids' => 'required'
+				'message_ids' => 'required',
+				'_wpnonce'    => 'required'
 			),
-			$_POST
+			$_REQUEST
 		);
+		$nonce     = sanitize_text_field( $_REQUEST['_wpnonce'] );
 
-		if ( $validator->validate() ) {
+		if ( $validator->validate() && wp_verify_nonce( $nonce, 'can-resubmit-messages' ) ) {
+
 			$message_ids = sanitize_text_field( $_POST['message_ids'] );
 			$message_ids = explode( ',', $message_ids );
 			KMCFMessageFilter::getInstance()->skipValidation( true );

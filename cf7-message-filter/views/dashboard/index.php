@@ -259,8 +259,10 @@ $frequent_emails = StatisticsModule::getInstance()->frequentEmails();
                     <ol>
                         <!--                        <li>Pro users can now receive suggested spam words and emails every month.</li>-->
                         <li>Fix Security loophole</li>
-                        <li>Fix Ukrainian anthem playing on Russian sites</li>
-                        <li>Fix filters with apostrophes not working as expected</li>
+                        <li>Update Blocked Messages page</li>
+                        <li>Fix pressing the enter key refreshes the settings page without saving the spam word</li>
+                        <li>Fix unable to delete  a spam word</li>
+                        <li>Update Freemius</li>
                     </ol>
 					<?php /*esc_html_e( "Please help translate this plugin to your language", KMCF7MS_TEXT_DOMAIN ) */
 					?><!-- <a

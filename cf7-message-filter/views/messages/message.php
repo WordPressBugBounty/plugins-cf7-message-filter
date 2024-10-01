@@ -80,6 +80,8 @@ $ajax_url   = admin_url( "admin-ajax.php" );
 		</div>-->
     <script>
         const message_id = <?php echo $message_id?>;
+        const DELETE_MESSAGE_NONCE = "<?php echo wp_create_nonce( 'can-delete-messages' )?>";
+        const RESUBMIT_MESSAGE_NONCE = "<?php echo wp_create_nonce( 'can-resubmit-messages' )?>";
 
         function bootstrapSwal() {
             return Swal.mixin({
@@ -104,7 +106,7 @@ $ajax_url   = admin_url( "admin-ajax.php" );
                 confirmButtonText: 'Yes, delete',
                 showLoaderOnConfirm: true,
                 preConfirm: (login) => {
-                    return fetch("<?php echo $ajax_url?>", {
+                    return fetch("<?php echo $ajax_url?>" + "?_wpnonce=" + DELETE_MESSAGE_NONCE, {
                         method: 'POST',
                         body: formData
                     })
@@ -157,7 +159,7 @@ $ajax_url   = admin_url( "admin-ajax.php" );
                 confirmButtonText: 'OK, resubmit',
                 showLoaderOnConfirm: true,
                 preConfirm: (login) => {
-                    return fetch("<?php echo $ajax_url?>", {
+                    return fetch("<?php echo $ajax_url?>"+ "?_wpnonce=" + RESUBMIT_MESSAGE_NONCE, {
                         method: 'POST',
                         body: formData
                     })
