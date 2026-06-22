@@ -12,7 +12,7 @@ class KMCFMessageFilter {
 
 	public function __construct() {
 		// do something here
-		$this->version  = '1.6.3.8';
+		$this->version  = '1.6.3.9';
 		$this->blocked  = get_option( "kmcfmf_messages_blocked_today_tmp", 0 );
 		self::$instance = $this;
 	}
@@ -222,7 +222,7 @@ class KMCFMessageFilter {
                     <li><?php _e( "Spam messages blocked by this plugin", KMCFMF_TEXT_DOMAIN ) ?></li>
                 </ol>
 				<?php _e( "You can easily opt-in or out of this data collection at any time by visiting the", KMCFMF_TEXT_DOMAIN ); ?>
-                <a href="<?php echo $data_collection_url ?>"><? _e( "settings page", KMCFMF_TEXT_DOMAIN ) ?></a>. <br>
+                <a href="<?php echo $data_collection_url ?>"><?php _e( "settings page", KMCFMF_TEXT_DOMAIN ) ?></a>. <br>
                 <br>
                 <div id="kmcf7-data-notice-buttons">
                     <button id="kmcf7-data-notice-button-yes"

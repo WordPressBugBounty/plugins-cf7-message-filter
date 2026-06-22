@@ -153,7 +153,7 @@ $form_columns = MessagesModule::getInstance()->getColumns2( $form_id, $selected_
     const DOWNLOAD_MESSAGE_NONCE = "<?php echo wp_create_nonce( 'kmcfmf_can_download_csv' )?>";
     const forms = <?php echo wp_json_encode( $forms )?>;
     const all_registered_form_placeholder = "<?php _e( "All Registered Forms", KMCFMF_TEXT_DOMAIN )?>"
-    const selected_contact_form = '<?php echo $selected_contact_form?>'
+    const selected_contact_form = '<?php echo esc_js($selected_contact_form)?>'
     const form_id = '<?php echo $form_id?>'
 
     jQuery(function ($) {
@@ -184,7 +184,7 @@ $form_columns = MessagesModule::getInstance()->getColumns2( $form_id, $selected_
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: '<?php echo admin_url( "admin-ajax.php?action=kmcf7_messages&form_id={$form_id}&contact_form={$selected_contact_form}" )?>' + "&_wpnonce=" + GET_MESSAGES_NONCE + "&form_columns=" + JSON.stringify(<?php echo json_encode( array_values( $form_columns ) )?>),
+                        url: '<?php echo admin_url( "admin-ajax.php?action=kmcf7_messages&form_id={$form_id}&contact_form=".esc_js($selected_contact_form) )?>' + "&_wpnonce=" + GET_MESSAGES_NONCE + "&form_columns=" + JSON.stringify(<?php echo json_encode( array_values( $form_columns ) )?>),
                         error: function (jqXHR, textStatus, errorThrown) {
                             let error_message = '';
                             // check if responseJSON is not empty
@@ -228,7 +228,7 @@ $form_columns = MessagesModule::getInstance()->getColumns2( $form_id, $selected_
             });
 
             // column.visible(!column.visible());
-            let cachedColumns = localStorage.getItem("<?php echo $selected_form?>")
+            let cachedColumns = localStorage.getItem("<?php echo esc_js($selected_form)?>")
             if (cachedColumns !== undefined && cachedColumns !== null) {
                 cachedColumns = JSON.parse(cachedColumns)
             } else {
@@ -265,14 +265,14 @@ $form_columns = MessagesModule::getInstance()->getColumns2( $form_id, $selected_
 
                 // Toggle the visibility
                 column.visible(!column.visible());
-                const cachedColumnsInLocalStorage = localStorage.getItem("<?php echo $selected_form?>")
+                const cachedColumnsInLocalStorage = localStorage.getItem("<?php echo esc_js($selected_form)?>")
                 if (cachedColumnsInLocalStorage !== undefined && cachedColumnsInLocalStorage !== null) {
-                    localStorage.removeItem("<?php echo $selected_form?>")
+                    localStorage.removeItem("<?php echo esc_js($selected_form)?>")
                 }
                 cachedColumns[name] = {"id": value, visible: column.visible()}
                 let formData = new FormData();
                 formData.append("action", 'kmcf7_save_visible_columns');
-                formData.append("form", '<?php echo $selected_form ?>');
+                formData.append("form", '<?php echo esc_js($selected_form) ?>');
                 formData.append("columns", JSON.stringify(cachedColumns));
                 formData.append("_wpnonce", '<?php echo wp_create_nonce( 'kmcfmf_can_save_visible_columns' )?>');
                 fetch("<?php echo $ajax_url?>", {
