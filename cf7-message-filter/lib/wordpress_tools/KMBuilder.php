@@ -158,7 +158,8 @@ if ( ! class_exists( 'KMBuilder' ) ) {
 			}
 
 			if ( $this->per_page > 0 || $this->per_page == - 1 ) { // check if the query requires pagination
-				$total = intval( $wpdb->get_var( esc_sql( $total_query ) ) );
+				$total = intval( $wpdb->get_var( $total_query ) );
+
 				$query .= $additions;
 
 				// prevent calculating offset for negative one

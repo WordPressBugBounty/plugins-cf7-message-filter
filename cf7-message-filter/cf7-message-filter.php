@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @link              www.kofimokome.stream
+ * @link              www.kofimoko.me
  * @since             1.0.0
  * @package           km_message_filter
  *
@@ -9,9 +9,9 @@
  * Plugin Name: Message Filter for Contact Form 7
  * Plugin URI: https://github.com/kofimokome/cf7-message-filter
  * Description: Filters messages submitted from contact form 7 if it has words or email marked as spam by the user
- * Version: 1.6.3.9
+ * Version: 1.6.4.0
  * Author: Kofi Mokome
- * Author URI: https://www.kofimokome.stream
+ * Author URI: https://www.kofimoko.me
  * License: GPL-2.0+
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain: cf7-message-filter
